@@ -1,0 +1,187 @@
+const state = {
+  running: false,
+  lastCheck: null,
+  findings: JSON.parse(localStorage.getItem("spacexai_findings") || "[]"),
+  alerts: JSON.parse(localStorage.getItem("spacexai_alerts") || "[]"),
+  roles: { ...CONFIG.roles },
+  timer: null
+};
+
+function save() {
+  localStorage.setItem("spacexai_findings", JSON.stringify(state.findings));
+  localStorage.setItem("spacexai_alerts", JSON.stringify(state.alerts));
+  localStorage.setItem("spacexai_roles", JSON.stringify(state.roles));
+}
+
+function log(msg) {
+  const el = document.getElementById("logOutput");
+  const line = `[${new Date().toISOString()}] ${msg}\n`;
+  el.textContent += line;
+  el.scrollTop = el.scrollHeight;
+  console.log(msg);
+}
+
+async function fetchCisaKev() {
+  if (!CONFIG.apis.cisaKev.enabled) return [];
+  try {
+    const res = await fetch(CONFIG.apis.cisaKev.url);
+    const data = await res.json();
+    return data.vulnerabilities || [];
+  } catch (e) {
+    log("CISA KEV error: " + e.message);
+    return [];
+  }
+}
+
+async function runMonitor() {
+  if (!state.roles.Monitor) return;
+  log("Monitor: checking CISA KEV...");
+  const kev = await fetchCisaKev();
+  let newCount = 0;
+
+  for (const item of kev.slice(0, 25)) {
+    const cve = item.cveID;
+    if (!state.findings.some(f => f.id === cve)) {
+      const finding = {
+        id: cve,
+        source: "CISA-KEV",
+        severity: "HIGH",
+        title: item.vulnerabilityName || cve,
+        description: (item.shortDescription || "").slice(0, 200),
+        detected_at: new Date().toISOString()
+      };
+      state.findings.unshift(finding);
+      raiseAlert(finding);
+      newCount++;
+    }
+  }
+  log(`Monitor finished – ${newCount} new findings`);
+}
+
+function raiseAlert(finding) {
+  const alert = {
+    id: "alert-" + finding.id + "-" + Date.now(),
+    severity: finding.severity,
+    title: finding.title,
+    created_at: new Date().toISOString()
+  };
+  state.alerts.unshift(alert);
+  log(`ALERT [${alert.severity}] ${alert.title}`);
+
+  if (Notification.permission === "granted") {
+    new Notification("SpaceXAI – " + alert.severity, {
+      body: alert.title,
+      icon: "/icons/icon-192.png"
+    });
+  }
+}
+
+async function runOnce() {
+  log("=== Cycle start ===");
+  await runMonitor();
+  state.lastCheck = new Date().toISOString();
+  save();
+  render();
+  log("=== Cycle complete ===");
+}
+
+function startDaemon() {
+  if (state.running) return;
+  state.running = true;
+  document.getElementById("status").textContent = "Running";
+  log("Daemon started");
+  runOnce();
+  state.timer = setInterval(runOnce, CONFIG.checkIntervalMs);
+  render();
+}
+
+function stopDaemon() {
+  state.running = false;
+  clearInterval(state.timer);
+  document.getElementById("status").textContent = "Stopped";
+  log("Daemon stopped");
+  render();
+}
+
+function render() {
+  // Alerts
+  const alertsBody = document.getElementById("alertsBody");
+  alertsBody.innerHTML = state.alerts.slice(0, 50).map(a => `
+    <tr>
+      <td class="severity-\( {a.severity}"> \){a.severity}</td>
+      <td>${a.title}</td>
+      <td>${new Date(a.created_at).toLocaleString()}</td>
+    </tr>
+  `).join("");
+
+  // Findings
+  const findingsBody = document.getElementById("findingsBody");
+  findingsBody.innerHTML = state.findings.slice(0, 50).map(f => `
+    <tr>
+      <td>${f.id}</td>
+      <td class="severity-\( {f.severity}"> \){f.severity}</td>
+      <td>${f.title}</td>
+      <td>${f.source}</td>
+    </tr>
+  `).join("");
+
+  // Roles
+  const rolesList = document.getElementById("rolesList");
+  rolesList.innerHTML = Object.keys(state.roles).map(role => `
+    <div class="role-item">
+      <input type="checkbox" id="role-${role}" ${state.roles[role] ? "checked" : ""} 
+             onchange="toggleRole('${role}', this.checked)">
+      <label for="role-\( {role}"> \){role}</label>
+    </div>
+  `).join("");
+
+  document.getElementById("lastCheck").textContent = state.lastCheck
+    ? new Date(state.lastCheck).toLocaleString()
+    : "never";
+
+  document.getElementById("activeRoles").textContent =
+    Object.entries(state.roles).filter(([_, v]) => v).map(([k]) => k).join(", ") || "none";
+}
+
+function toggleRole(role, value) {
+  state.roles[role] = value;
+  save();
+  render();
+  log(`Role ${role} → ${value}`);
+}
+
+function clearAlerts() {
+  if (confirm("Clear all alerts?")) {
+    state.alerts = [];
+    save();
+    render();
+  }
+}
+
+// Tabs
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+  });
+});
+
+// Buttons
+document.getElementById("btnStart").onclick = startDaemon;
+document.getElementById("btnStop").onclick = stopDaemon;
+document.getElementById("btnOnce").onclick = runOnce;
+document.getElementById("btnClear").onclick = clearAlerts;
+
+// Init
+if ("Notification" in window && Notification.permission === "default") {
+  Notification.requestPermission();
+}
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(console.error);
+}
+
+render();
+log("SpaceXAI Bot ready (browser-only mode)");
