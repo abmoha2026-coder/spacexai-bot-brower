@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpaceXAI Bot Intelligence</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#00d4ff" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">SpaceXAI Bot Intelligence</div>
+      <div class="status" id="status">Stopped</div>
+      <div class="controls">
+        <button id="btnStart">Start</button>
+        <button id="btnStop">Stop</button>
+        <button id="btnOnce">Run Once</button>
+        <button id="btnClear">Clear Alerts</button>
+      </div>
+    </header>
+
+    <div class="info-bar">
+      <span>Last check: <strong id="lastCheck">never</strong></span>
+      <span>Active roles: <strong id="activeRoles">—</strong></span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="alerts">Alerts</button>
+      <button class="tab" data-tab="findings">Findings</button>
+      <button class="tab" data-tab="roles">Roles</button>
+      <button class="tab" data-tab="log">Log</button>
+    </div>
+
+    <div class="panels">
+      <div id="panel-alerts" class="panel active">
+        <table>
+          <thead>
+            <tr><th>Severity</th><th>Title</th><th>Time</th></tr>
+          </thead>
+          <tbody id="alertsBody"></tbody>
+        </table>
+      </div>
+
+      <div id="panel-findings" class="panel">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Severity</th><th>Title</th><th>Source</th></tr>
+          </thead>
+          <tbody id="findingsBody"></tbody>
+        </table>
+      </div>
+
+      <div id="panel-roles" class="panel">
+        <div id="rolesList"></div>
+      </div>
+
+      <div id="panel-log" class="panel">
+        <pre id="logOutput"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
