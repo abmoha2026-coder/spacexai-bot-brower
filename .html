@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpaceXAI Bot Intelligence</title>
+  <meta name="theme-color" content="#00d4ff" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #12181f;
+      --border: #1e2a36;
+      --text: #e6edf3;
+      --muted: #8b9bb0;
+      --accent: #00d4ff;
+      --high: #ff4d4f;
+      --medium: #faad14;
+      --low: #52c41a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+    .app { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .logo { font-size: 1.35rem; font-weight: 700; color: var(--accent); }
+    .status {
+      padding: 4px 12px; border-radius: 20px;
+      background: #1a2330; font-size: 0.85rem;
+    }
+    .controls { display: flex; flex-wrap: wrap; gap: 6px; }
+    .controls button {
+      background: #1a2330; color: var(--text);
+      border: 1px solid var(--border);
+      padding: 7px 14px; border-radius: 6px;
+      cursor: pointer; font-size: 0.9rem;
+    }
+    .controls button:hover {
+      border-color: var(--accent); color: var(--accent);
+    }
+    .info-bar {
+      display: flex; flex-wrap: wrap; gap: 20px;
+      font-size: 0.9rem; color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .tabs { display: flex; gap: 4px; margin-bottom: 0; }
+    .tab {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); padding: 8px 16px;
+      border-radius: 6px 6px 0 0; cursor: pointer;
+    }
+    .tab.active {
+      background: var(--card); color: var(--accent);
+      border-bottom-color: var(--card);
+    }
+    .panels {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 0 8px 8px 8px; min-height: 420px; overflow: auto;
+    }
+    .panel { display: none; padding: 14px; }
+    .panel.active { display: block; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td {
+      padding: 9px 10px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; }
+    #logOutput {
+      background: #0d1117; padding: 12px; border-radius: 6px;
+      font-size: 0.82rem; max-height: 420px;
+      overflow-y: auto; white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .role-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .severity-HIGH { color: var(--high); font-weight: 600; }
+    .severity-MEDIUM { color: var(--medium); }
+    .severity-LOW { color: var(--low); }
+    .empty { color: var(--muted); padding: 20px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">SpaceXAI Bot Intelligence</div>
+      <div class="status" id="status">Stopped</div>
+      <div class="controls">
+        <button id="btnStart">Start</button>
+        <button id="btnStop">Stop</button>
+        <button id="btnOnce">Run Once</button>
+        <button id="btnClear">Clear Alerts</button>
+      </div>
+    </header>
+
+    <div class="info-bar">
+      <span>Last check: <strong id="lastCheck">never</strong></span>
+      <span>Active roles: <strong id="activeRoles">—</strong></span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="alerts">Alerts</button>
+      <button class="tab" data-tab="findings">Findings</button>
+      <button class="tab" data-tab="roles">Roles</button>
+      <button class="tab" data-tab="log">Log</button>
+    </div>
+
+    <div class="panels">
+      <div id="panel-alerts" class="panel active">
+        <table>
+          <thead>
+            <tr><th>Severity</th><th>Title</th><th>Time</th></tr>
+          </thead>
+          <tbody id="alertsBody"></tbody>
+        </table>
+        <div id="alertsEmpty" class="empty" style="display:none;">No alerts yet</div>
+      </div>
+
+      <div id="panel-findings" class="panel">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Severity</th><th>Title</th><th>Source</th></tr>
+          </thead>
+          <tbody id="findingsBody"></tbody>
+        </table>
+        <div id="findingsEmpty" class="empty" style="display:none;">No findings yet</div>
+      </div>
+
+      <div id="panel-roles" class="panel">
+        <div id="rolesList"></div>
+      </div>
+
+      <div id="panel-log" class="panel">
+        <pre id="logOutput"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===================== CONFIG =====================
+    const CONFIG = {
+      checkIntervalMs: 5 * 60 * 1000, // 5 minutes
+      roles: {
+        Monitor: true,
+        Auditor: true,
+        Analyst: true,
+        Responder: true,
+        Solver: false,
+        Commander: true
+      },
+      apis: {
+        cisaKev: {
+          url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+          enabled: true
+        }
+      }
+    };
+
+    // ===================== STATE =====================
+    const state = {
+      running: false,
+      lastCheck: null,
+      findings: [],
+      alerts: [],
+      roles: { ...CONFIG.roles },
+      timer: null
+    };
+
+    // Load from localStorage safely
+    try {
+      const savedFindings = localStorage.getItem("spacexai_findings");
+      const savedAlerts = localStorage.getItem("spacexai_alerts");
+      const savedRoles = localStorage.getItem("spacexai_roles");
+
+      if (savedFindings) state.findings = JSON.parse(savedFindings);
+      if (savedAlerts) state.alerts = JSON.parse(savedAlerts);
+      if (savedRoles) state.roles = { ...CONFIG.roles, ...JSON.parse(savedRoles) };
+    } catch (e) {
+      console.warn("Failed to load saved state:", e);
+    }
+
+    function save() {
+      try {
+        localStorage.setItem("spacexai_findings", JSON.stringify(state.findings));
+        localStorage.setItem("spacexai_alerts", JSON.stringify(state.alerts));
+        localStorage.setItem("spacexai_roles", JSON.stringify(state.roles));
+      } catch (e) {
+        log("Warning: could not save to localStorage");
+      }
+    }
+
+    function log(msg) {
+      const el = document.getElementById("logOutput");
+      const time = new Date().toISOString().replace("T", " ").substring(0, 19);
+      const line = `[${time}] ${msg}\n`;
+      el.textContent += line;
+      el.scrollTop = el.scrollHeight;
+      console.log(msg);
+    }
+
+    // ===================== COLLECTORS =====================
+    async function fetchCisaKev() {
+      if (!CONFIG.apis.cisaKev.enabled) return [];
+      try {
+        const res = await fetch(CONFIG.apis.cisaKev.url, {
+          cache: "no-cache",
+          headers: { "Accept": "application/json" }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return Array.isArray(data.vulnerabilities) ? data.vulnerabilities : [];
+      } catch (e) {
+        log("CISA KEV error: " + e.message);
+        return [];
+      }
+    }
+
+    async function runMonitor() {
+      if (!state.roles.Monitor) return;
+      log("Monitor: checking CISA KEV feed...");
+      const kev = await fetchCisaKev();
+      let newCount = 0;
+
+      for (const item of kev.slice(0, 30)) {
+        const cve = item.cveID;
+        if (!cve) continue;
+        if (state.findings.some(f => f.id === cve)) continue;
+
+        const finding = {
+          id: cve,
+          source: "CISA-KEV",
+          severity: "HIGH",
+          title: item.vulnerabilityName || cve,
+          description: (item.shortDescription || "").slice(0, 220),
+          detected_at: new Date().toISOString()
+        };
+
+        state.findings.unshift(finding);
+        raiseAlert(finding);
+        newCount++;
+      }
+      log(`Monitor finished – ${newCount} new finding(s)`);
+    }
+
+    function raiseAlert(finding) {
+      const alert = {
+        id: "alert-" + finding.id + "-" + Date.now(),
+        severity: finding.severity || "INFO",
+        title: finding.title || finding.id,
+        created_at: new Date().toISOString()
+      };
+      state.alerts.unshift(alert);
+      log(`ALERT [${alert.severity}] ${alert.title}`);
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        try {
+          new Notification("SpaceXAI – " + alert.severity, {
+            body: alert.title,
+            silent: false
+          });
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    async function runOnce() {
+      log("=== Cycle start ===");
+      try {
+        await runMonitor();
+      } catch (e) {
+        log("Cycle error: " + e.message);
+      }
+      state.lastCheck = new Date().toISOString();
+      save();
+      render();
+      log("=== Cycle complete ===");
+    }
+
+    function startDaemon() {
+      if (state.running) return;
+      state.running = true;
+      document.getElementById("status").textContent = "Running";
+      log("Daemon started");
+      runOnce();
+      state.timer = setInterval(runOnce, CONFIG.checkIntervalMs);
+      render();
+    }
+
+    function stopDaemon() {
+      state.running = false;
+      if (state.timer) {
+        clearInterval(state.timer);
+        state.timer = null;
+      }
+      document.getElementById("status").textContent = "Stopped";
+      log("Daemon stopped");
+      render();
+    }
+
+    // ===================== RENDER =====================
+    function render() {
+      // Alerts
+      const alertsBody = document.getElementById("alertsBody");
+      const alertsEmpty = document.getElementById("alertsEmpty");
+      if (state.alerts.length === 0) {
+        alertsBody.innerHTML = "";
+        alertsEmpty.style.display = "block";
+      } else {
+        alertsEmpty.style.display = "none";
+        alertsBody.innerHTML = state.alerts.slice(0, 60).map(a => `
+          <tr>
+            <td class="severity-\( {a.severity}"> \){a.severity}</td>
+            <td>${escapeHtml(a.title)}</td>
+            <td>${formatTime(a.created_at)}</td>
+          </tr>`).join("");
+      }
+
+      // Findings
+      const findingsBody = document.getElementById("findingsBody");
+      const findingsEmpty = document.getElementById("findingsEmpty");
+      if (state.findings.length === 0) {
+        findingsBody.innerHTML = "";
+        findingsEmpty.style.display = "block";
+      } else {
+        findingsEmpty.style.display = "none";
+        findingsBody.innerHTML = state.findings.slice(0, 60).map(f => `
+          <tr>
+            <td>${escapeHtml(f.id)}</td>
+            <td class="severity-\( {f.severity}"> \){f.severity}</td>
+            <td>${escapeHtml(f.title)}</td>
+            <td>${escapeHtml(f.source)}</td>
+          </tr>`).join("");
+      }
+
+      // Roles
+      const rolesList = document.getElementById("rolesList");
+      rolesList.innerHTML = Object.keys(state.roles).map(role => `
+        <div class="role-item">
+          <input type="checkbox" id="role-\( {role}" data-role=" \){role}"
+                 ${state.roles[role] ? "checked" : ""}>
+          <label for="role-\( {role}"> \){role}</label>
+        </div>`).join("");
+
+      // Attach role listeners
+      rolesList.querySelectorAll("input[type=checkbox]").forEach(cb => {
+        cb.addEventListener("change", (e) => {
+          const role = e.target.dataset.role;
+          state.roles[role] = e.target.checked;
+          save();
+          render();
+          log(`Role ${role} → ${e.target.checked}`);
+        });
+      });
+
+      // Info bar
+      document.getElementById("lastCheck").textContent =
+        state.lastCheck ? formatTime(state.lastCheck) : "never";
+
+      const active = Object.entries(state.roles)
+        .filter(([_, v]) => v)
+        .map(([k]) => k);
+      document.getElementById("activeRoles").textContent =
+        active.length ? active.join(", ") : "none";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text || "";
+      return div.innerHTML;
+    }
+
+    function formatTime(iso) {
+      try {
+        return new Date(iso).toLocaleString();
+      } catch {
+        return iso;
+      }
+    }
+
+    function clearAlerts() {
+      if (confirm("Clear all alerts?")) {
+        state.alerts = [];
+        save();
+        render();
+        log("Alerts cleared");
+      }
+    }
+
+    // ===================== UI EVENTS =====================
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+      });
+    });
+
+    document.getElementById("btnStart").addEventListener("click", startDaemon);
+    document.getElementById("btnStop").addEventListener("click", stopDaemon);
+    document.getElementById("btnOnce").addEventListener("click", () => {
+      runOnce();
+    });
+    document.getElementById("btnClear").addEventListener("click", clearAlerts);
+
+    // ===================== INIT =====================
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then(p => {
+        log("Notification permission: " + p);
+      });
+    }
+
+    render();
+    log("SpaceXAI Bot ready (single HTML file – fixed version)");
+  </script>
+</body>
+</html>
