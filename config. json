@@ -1,0 +1,21 @@
+const CONFIG = {
+  checkIntervalMs: 5 * 60 * 1000, // 5 minutes
+  roles: {
+    Monitor: true,
+    Auditor: true,
+    Analyst: true,
+    Responder: true,
+    Solver: false,
+    Commander: true
+  },
+  apis: {
+    cisaKev: {
+      url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      enabled: true
+    },
+    resilience: {
+      base: "https://news.resiliencesecurities.com/api/v1",
+      enabled: true
+    }
+  }
+};
