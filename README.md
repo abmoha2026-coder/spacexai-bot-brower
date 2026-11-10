@@ -1,4 +1,4 @@
-# SpaceXAI Bot Intelligence
+# TEAM BLUE BOT Browser 
 
 **Browser-based cybersecurity intelligence bot**  
 Continuous monitoring • Threat detection • Role-based analysis • Real-time alerting
