@@ -1,1 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpaceXAI Bot Intelligence</title>
+  <meta name="theme-color" content="#00d4ff" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #12181f;
+      --border: #1e2a36;
+      --text: #e6edf3;
+      --muted: #8b9bb0;
+      --accent: #00d4ff;
+      --high: #ff4d4f;
+      --medium: #faad14;
+      --low: #52c41a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+    .app { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .logo { font-size: 1.35rem; font-weight: 700; color: var(--accent); }
+    .status {
+      padding: 4px 12px; border-radius: 20px;
+      background: #1a2330; font-size: 0.85rem;
+    }
+    .controls { display: flex; flex-wrap: wrap; gap: 6px; }
+    .controls button {
+      background: #1a2330; color: var(--text);
+      border: 1px solid var(--border);
+      padding: 7px 14px; border-radius: 6px;
+      cursor: pointer; font-size: 0.9rem;
+    }
+    .controls button:hover {
+      border-color: var(--accent); color: var(--accent);
+    }
+    .info-bar {
+      display: flex; flex-wrap: wrap; gap: 20px;
+      font-size: 0.9rem; color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .tabs { display: flex; gap: 4px; margin-bottom: 0; }
+    .tab {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); padding: 8px 16px;
+      border-radius: 6px 6px 0 0; cursor: pointer;
+    }
+    .tab.active {
+      background: var(--card); color: var(--accent);
+      border-bottom-color: var(--card);
+    }
+    .panels {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 0 8px 8px 8px; min-height: 420px; overflow: auto;
+    }
+    .panel { display: none; padding: 14px; }
+    .panel.active { display: block; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td {
+      padding: 9px 10px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; }
+    #logOutput {
+      background: #0d1117; padding: 12px; border-radius: 6px;
+      font-size: 0.82rem; max-height: 420px;
+      overflow-y: auto; white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .role-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .severity-HIGH { color: var(--high); font-weight: 600; }
+    .severity-MEDIUM { color: var(--medium); }
+    .severity-LOW { color: var(--low); }
+    .empty { color: var(--muted); padding: 20px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">SpaceXAI Bot Intelligence</div>
+      <div class="status" id="status">Stopped</div>
+      <div class="controls">
+        <button id="btnStart">Start</button>
+        <button id="btnStop">Stop</button>
+        <button id="btnOnce">Run Once</button>
+        <button id="btnClear">Clear Alerts</button>
+      </div>
+    </header>
 
+    <div class="info-bar">
+      <span>Last check: <strong id="lastCheck">never</strong></span>
+      <span>Active roles: <strong id="activeRoles">—</strong></span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="alerts">Alerts</button>
+      <button class="tab" data-tab="findings">Findings</button>
+      <button class="tab" data-tab="roles">Roles</button>
+      <button class="tab" data-tab="log">Log</button>
+    </div>
+
+    <div class="panels">
+      <div id="panel-alerts" class="panel active">
+        <table>
+          <thead>
+            <tr><th>Severity</th><th>Title</th><th>Time</th></tr>
+          </thead>
+          <tbody id="alertsBody"></tbody>
+        </table>
+        <div id="alertsEmpty" class="empty" style="display:none;">No alerts yet</div>
+      </div>
+
+      <div id="panel-findings" class="panel">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Severity</th><th>Title</th><th>Source</th></tr>
+          </thead>
+          <tbody id="findingsBody"></tbody>
+        </table>
+        <div id="findingsEmpty" class="empty" style="display:none;">No findings yet</div>
+      </div>
+
+      <div id="panel
