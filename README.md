@@ -8,7 +8,7 @@ Continuous monitoring • Threat detection • Role-based analysis • Real-time
 
 ## Overview
 
-SpaceXAI Bot Browser Intelligence is a lightweight, pure client-side cybersecurity monitoring tool that runs entirely in the browser. It continuously watches public threat intelligence feeds, detects high-severity vulnerabilities, creates findings, raises alerts, and organizes activity through defined operational roles.
+Team Blue Bot Browser Intelligence is a lightweight, pure client-side cybersecurity monitoring tool that runs entirely in the browser. It continuously watches public threat intelligence feeds, detects high-severity vulnerabilities, creates findings, raises alerts, and organizes activity through defined operational roles.
 
 No installation, no backend, and no elevated privileges are required.
 
