@@ -23,9 +23,7 @@ No installation, no backend, and no elevated privileges are required.
 - **Works offline** after first load
 - **No root / no system access required**
 
-## Screenshots
-
-> *(Add screenshots of the dashboard, alerts view, and roles panel here)*
+## Screensho
 
 ## Quick Start
 
